@@ -70,14 +70,15 @@ def load_history(enable_frecent = False):
     return hist
 
 def set_label(arg):
+    target_path = os.path.abspath(arg["path"]).rstrip('/\\')
     target_label = arg["set_label"]
     if target_label[0] != ",":
         raise ValueError("标签必须以','开头")
 
     labels = load_labels()
     with open(CONF_LABEL + "_tmp", "w") as f:
-        print(f"[set] %s : %s" % (target_label, arg["path"]))
-        f.write(f"%s|%s\n" % (target_label, arg["path"]))
+        print(f"[set] %s : %s" % (target_label, target_path))
+        f.write(f"%s|%s\n" % (target_label, target_path))
         for label, path in labels.items():
             if label == target_label:
                 continue
@@ -125,7 +126,6 @@ def complete(arg):
 
 def record_history(arg):
     target_path = os.path.abspath(arg["path"]).rstrip('/\\')
-
     hists = load_history()
     target_freq = (hists[target_path][0] if target_path in hists else 0) + 1
     target_tm = int(time.time())
@@ -150,9 +150,7 @@ def split_history():
     out = {}
     for path in hists:
         for one in split_single_path(path):
-            if one not in out.keys():
-                out[one] = hists[path]
-            elif out[one] < hists[path]:
+            if one not in out.keys() or out[one] < hists[path]:
                 out[one] = hists[path]
     return out
 
@@ -164,47 +162,85 @@ def frecent(rank, tm):
     dx = int(time.time()) - tm;
     return int(10000 * rank * (3.75/((0.0001 * dx + 1) + 0.25)))
 
+def split_single_pinyin(base_list, py_list):
+    return [ base + one for base in base_list for one in py_list ]
+
+def to_pinyin(words):
+    n_list = py(words, style=pystyle.NORMAL, heteronym=True)
+    f_list = py(words, style=pystyle.FIRST_LETTER, heteronym=True)
+    i_list = py(words, style=pystyle.INITIALS, heteronym=True)
+    return [ list(set(n_list[idx] + f_list[idx] + i_list[idx])) for idx in range(0, len(n_list)) ]
+
+def pinyin_choices(choices_list):
+    out_list = []
+    out_map = {}
+    for choice in choices_list:
+        base_list = [""]
+        py_out = to_pinyin(choice)
+        for py_list in py_out:
+            base_list = split_single_pinyin(base_list, py_list)
+
+        out_map[choice] = base_list
+        out_list.extend([ "".join(one) for one in base_list])
+    return (out_list, out_map)
+
+def remove_same_keep_sort(choices_list):
+    out_list = []
+    for one in choices_list:
+        if one in out_list:
+            continue
+        out_list.append(one)
+    return out_list
+
+def get_match(query, choices, score = 60, count = 5):
+    py_list, py_map = pinyin_choices(choices)
+    match_list = fuzz.extractBests(query, py_list, score_cutoff=score, limit=count)
+    if len(match_list) == 0:
+        return None
+    out_list = [ key for path, score in match_list for key, val in py_map.items() if path in val ]
+    return remove_same_keep_sort(out_list)
+
 def jump_label(target):
     if target[0] != ',':
         return None
 
     labels = load_labels()
-    if target is ',':
-        if ',' in labels:
-            return labels[',']
-    else:
-        label, score = fuzz.extractOne(target, labels.keys())
-        if score >= 90:
-            return labels[label]
+    if target is ',' and ',' in labels:
+        return labels[',']
+    elif target is not ',':
+        match_list = get_match(target, labels.keys(), score=90, count = 1)
+        if match_list != None:
+            return match_list[0]
 
+    # ',' 开头意味着只检索标签
     print(f"找不到标签: %s" % target)
     exit(1)
 
 def jump_local(target):
+    if target[0] == ',':
+        return None
+
     entries = [ entry for entry in os.listdir(".") if os.path.isdir(entry) ]
-    match_path, score = fuzz.extractOne(target, entries)
-    if score >= 90:
-        print(match_path)
-        return
+    match_list = get_match(target, entries, score=60, count=1)
+    return match_list[0] if match_list != None else None
 
 def jump_history(target):
     pathes = split_history()
-    match_path_list = fuzz.extractBests(target, pathes.keys(), score_cutoff=60)
-    if len(match_path_list) == 0:
+    match_list = get_match(target, pathes.keys(), score=60, count=10)
+    if match_list == None:
         return None
 
-    best_match_precent = 0
+    best_match_frecent = 0
     best_match_length = 0
     best_match_path = ""
-    for path, score in match_path_list:
-        if pathes[path] >= best_match_precent:
-            if pathes[path] == best_match_precent and best_match_length < len(path):
+    for match in match_list:
+        if pathes[match] >= best_match_frecent:
+            if pathes[match] == best_match_frecent and best_match_length < len(match):
                 continue
-            best_match_precent = pathes[path]
-            best_match_length = len(path)
-            best_match_path = path
+            best_match_frecent = pathes[match]
+            best_match_length = len(match)
+            best_match_path = match
     return best_match_path
-
 
 def jump_directory(arg):
     target = arg["path"]
@@ -224,7 +260,6 @@ def jump_directory(arg):
         return
 
     best_match = jump_history(target)
-    print(best_match)
     if best_match != None:
         print(best_match)
         return
