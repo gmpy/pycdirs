@@ -121,8 +121,28 @@ def delete_label(arg):
                 f.write(f"%s|%s\n" % (label, path))
         os.rename(CONF_LABEL + "_tmp", CONF_LABEL)
 
+def complete_label(target):
+    labels = load_labels()
+    if target == ',':
+        print("\n".join(labels.keys()))
+        return
+
+    match_list = get_match(target, labels.keys(), score=1, count=sys.maxsize)
+    if match_list != None:
+        print("\n".join(match_list))
+
+def complete_path(target):
+    pathes = split_history()
+    match_list = get_match(target, pathes.keys(), score=60, count=sys.maxsize)
+    if match_list != None:
+        print("\n".join(match_list))
+
 def complete(arg):
-    pass
+    target = arg["path"]
+    if target[0] == ',':
+        complete_label(target)
+    else:
+        complete_path(target)
 
 def record_history(arg):
     target_path = os.path.abspath(arg["path"]).rstrip('/\\')
