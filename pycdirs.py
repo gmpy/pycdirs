@@ -1,10 +1,11 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 # -*- coding: UTF-8 -*-
 
 import os
 import sys
 import time
-import argparse
+import re
+from argparse import ArgumentParser as argparser
 from thefuzz import process as fuzz
 from pypinyin import pinyin as py
 from pypinyin import Style as pystyle
@@ -13,7 +14,7 @@ CONF_LABEL = os.getenv("HOME") + "/.cdirs_label"
 CONF_HISTORY = os.getenv("HOME") + "/.cdirs_history"
 
 def parse_args():
-    argp = argparse.ArgumentParser(add_help=False)
+    argp = argparser(add_help=False)
     argp.descritption = "更符合中文习惯的目录跳转工具"
     argp.add_argument("-h", "--help", action="help",
             help="展示此消息后退出")
@@ -38,7 +39,7 @@ def load_labels():
     labels = {}
 
     if os.path.exists(CONF_LABEL) and not os.path.isfile(CONF_LABEL):
-        raise(f"%s 已经存在且不是文件，请删除后使用标签功能" % CONF_LABEL)
+        raise FileExistsError(f"%s 已经存在且不是文件，请删除后使用标签功能" % CONF_LABEL)
     if not os.path.exists(CONF_LABEL):
         with open(CONF_LABEL, "w") as f:
             pass
@@ -54,7 +55,7 @@ def load_history(enable_frecent = False):
     hist = {}
 
     if os.path.exists(CONF_HISTORY) and not os.path.isfile(CONF_HISTORY):
-        raise(f"%s 已经存在且不是文件，请删除后使用标签功能" % CONF_HISTORY)
+        raise FileExistsError(f"%s 已经存在且不是文件，请删除后使用标签功能" % CONF_HISTORY)
     if not os.path.exists(CONF_HISTORY):
         with open(CONF_HISTORY, "w") as f:
             pass
@@ -89,8 +90,8 @@ def list_label(arg):
     target_label = arg["list_label"]
     labels = load_labels()
 
-    if target_label is not "":
-        if target_label is ',':
+    if target_label != "":
+        if target_label == ',':
             if ',' in labels:
                 print(f",\t%s" % labels[','])
         else:
@@ -101,7 +102,7 @@ def list_label(arg):
         if ',' in labels:
             print(f",\t%s" % labels[','])
         for label, path in labels.items():
-            if label is not ',':
+            if label != ',':
                 print(f"%s\t%s" % (label, path))
 
 def delete_label(arg):
@@ -126,35 +127,51 @@ def complete_label(target):
     if target == ',':
         print("\n".join(labels.keys()))
         return
-
     match_list = get_match(target, labels.keys(), score=1, count=sys.maxsize)
     if match_list != None:
         print("\n".join(match_list))
 
+def complete_local(target):
+    entries = [ entry for entry in os.listdir(".") if os.path.isdir(entry) ]
+    print("\n".join(entries))
+
 def complete_path(target):
+    entries = [ entry for entry in os.listdir(".") if os.path.isdir(entry) ]
     pathes = split_history()
-    match_list = get_match(target, pathes.keys(), score=60, count=sys.maxsize)
+    match_list = get_match(target, list(pathes.keys()) + entries, score=65, count=sys.maxsize)
     if match_list != None:
         print("\n".join(match_list))
 
 def complete(arg):
     target = arg["path"]
-    if target[0] == ',':
+    if len(target) == 0:
+        complete_local(target)
+    elif target[0] == '/':
+        return
+    elif target[0] == ',':
         complete_label(target)
     else:
         complete_path(target)
 
 def record_history(arg):
     target_path = os.path.abspath(arg["path"]).rstrip('/\\')
+    # $HOME and / aren't worth matching
+    if target_path in [ "/", os.getenv("HOME") ]:
+        return
+
     hists = load_history()
     target_freq = (hists[target_path][0] if target_path in hists else 0) + 1
     target_tm = int(time.time())
+    cnt = 0
     with open(CONF_HISTORY + "_tmp", "w") as f:
         f.write(f"%s|%d|%d\n" % (target_path, target_freq, target_tm))
         for path, (freq, tm) in hists.items():
             # remove NOT exist directory each time
             if path != target_path and os.path.isdir(path):
                 f.write(f"%s|%d|%d\n" % (path, freq, tm))
+                cnt += 1
+            if cnt > 200:
+                break
     os.rename(CONF_HISTORY + "_tmp", CONF_HISTORY)
 
 def split_single_path(path):
@@ -212,8 +229,14 @@ def remove_same_keep_sort(choices_list):
         out_list.append(one)
     return out_list
 
-def get_match(query, choices, score = 60, count = 5):
+def get_match(query, choices, score = 65, count = 5):
     py_list, py_map = pinyin_choices(choices)
+    pattern = re.compile(query)
+    match_list = [ s for s in py_list if pattern.search(s) ]
+    if len(match_list):
+        out_list = [ key for path in match_list for key, val in py_map.items() if path in val ]
+        return remove_same_keep_sort(out_list)
+
     match_list = fuzz.extractBests(query, py_list, score_cutoff=score, limit=count)
     if len(match_list) == 0:
         return None
@@ -225,15 +248,15 @@ def jump_label(target):
         return None
 
     labels = load_labels()
-    if target is ',' and ',' in labels:
+    if target == ',' and ',' in labels:
         return labels[',']
-    elif target is not ',':
+    elif target != ',':
         match_list = get_match(target, labels.keys(), score=90, count = 1)
         if match_list != None:
-            return match_list[0]
+            return labels[match_list[0]]
 
     # ',' 开头意味着只检索标签
-    print(f"找不到标签: %s" % target)
+    print(f"找不到标签: %s" % target, file=sys.stderr)
     exit(1)
 
 def jump_local(target):
@@ -241,7 +264,7 @@ def jump_local(target):
         return None
 
     entries = [ entry for entry in os.listdir(".") if os.path.isdir(entry) ]
-    match_list = get_match(target, entries, score=60, count=1)
+    match_list = get_match(target, entries, score=65, count=1)
     return match_list[0] if match_list != None else None
 
 def jump_history(target):
@@ -265,7 +288,7 @@ def jump_history(target):
 def jump_directory(arg):
     target = arg["path"]
 
-    if target in ["~", ".", ".."] or os.path.exists(target):
+    if target in ["~", ".", "..", "-"] or os.path.exists(target):
         print(target)
         return
 
@@ -284,7 +307,7 @@ def jump_directory(arg):
         print(best_match)
         return
 
-    print(f"找不到匹配的目录: %s" % target)
+    print(f"找不到匹配的目录: %s" % target, file=sys.stderr)
     exit(1)
 
 def main():
