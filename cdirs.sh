@@ -136,7 +136,8 @@ _cdirs() {
         file="$(\basename $key)"
 
         [ -d "$key" -o "${key:0:1}" = '.' -o "${key:0:1}" = '/' ] && return 1
-        [ -d "${dir}" ] && \ls $dir | \grep -q "$file" && return 1
+        [ -d "${dir}" -a "${dir}" != '.' ] && return 1
+        \ls $dir 2>/dev/null | \grep -q "$file" 2>/dev/null && return 1
         return 0
     }
 
