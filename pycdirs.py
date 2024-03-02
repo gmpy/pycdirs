@@ -155,7 +155,7 @@ def complete(arg):
 
 def record_history(arg):
     target_path = os.path.abspath(arg["path"]).rstrip('/\\')
-    # $HOME and / aren't worth matching
+    # 记录 $HOME 和 / 意义不大
     if target_path in [ "/", os.getenv("HOME") ]:
         return
 
@@ -166,7 +166,7 @@ def record_history(arg):
     with open(CONF_HISTORY + "_tmp", "w") as f:
         f.write(f"%s|%d|%d\n" % (target_path, target_freq, target_tm))
         for path, (freq, tm) in hists.items():
-            # remove NOT exist directory each time
+            # 每次记录都移除已经不存在的路径
             if path != target_path and os.path.isdir(path):
                 f.write(f"%s|%d|%d\n" % (path, freq, tm))
                 cnt += 1
@@ -176,10 +176,9 @@ def record_history(arg):
 
 def split_single_path(path):
     out = []
-    if path == '/':
-        return [path]
-    out.append(path)
-    out.extend(split_single_path(os.path.dirname(path)))
+    if path not in ('/', os.getenv("HOME")):
+        out.append(path)
+        out.extend(split_single_path(os.path.dirname(path)))
     return out
 
 def split_history():
@@ -232,7 +231,7 @@ def remove_same_keep_sort(choices_list):
 def get_match(query, choices, score = 65, count = 5):
     py_list, py_map = pinyin_choices(choices)
     pattern = re.compile(query)
-    match_list = [ s for s in py_list if pattern.search(s) ]
+    match_list = [ s for s in py_list if pattern.search(s.replace(os.getenv("HOME"), "", 1)) ]
     if len(match_list):
         out_list = [ key for path in match_list for key, val in py_map.items() if path in val ]
         return remove_same_keep_sort(out_list)
@@ -288,7 +287,7 @@ def jump_history(target):
 def jump_directory(arg):
     target = arg["path"]
 
-    if target in ["~", ".", "..", "-"] or os.path.exists(target):
+    if target in ("~", ".", "..", "-") or os.path.exists(target):
         print(target)
         return
 
