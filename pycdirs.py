@@ -129,7 +129,7 @@ def complete_label(target):
         print("\n".join(labels.keys()))
         return
     match_list = get_match(target, labels.keys(), score=1, count=sys.maxsize)
-    if match_list != None:
+    if len(match_list):
         print("\n".join(match_list))
 
 def complete_local(target):
@@ -140,7 +140,7 @@ def complete_path(target):
     entries = [ entry for entry in os.listdir(".") if os.path.isdir(entry) ]
     pathes = split_history()
     match_list = get_match(target, list(pathes.keys()) + entries, score=65, count=sys.maxsize)
-    if match_list != None:
+    if len(match_list):
         print("\n".join(match_list))
 
 def complete(arg):
@@ -179,7 +179,7 @@ def list_history(arg):
     target = arg["path"] if arg["path"] != os.getenv("PWD") else None
     pathes = split_history()
     match_list = get_match(target, pathes.keys(), score=0, count=sys.maxsize)
-    if match_list == None:
+    if len(match_list) == 0:
         return
 
     match_list.sort(key = lambda match : pathes[match])
@@ -247,17 +247,28 @@ def get_match(query, choices, score = 65, count = 5):
 
     # 转拼音
     py_list, py_map = pinyin_choices(choices)
+
+    # 如果查询的字符含有大写字符，则区分大小写，否则默认全转小写
+    has_uppercase = any(c.isupper() for c in query)
+    if has_uppercase == False:
+        query = query.lower()
+        py_list = [ one.lower() for one in py_list ]
+        py_map = { k: [ n.lower() for n in v ] for k, v in py_map.items() }
+
+    # 通过正则匹配
     pattern = re.compile(query)
     match_list = [ s for s in py_list if pattern.search(s.replace(os.getenv("HOME"), "", 1)) ]
     if len(match_list):
         out_list = [ key for path in match_list for key, val in py_map.items() if path in val ]
         return remove_same_keep_sort(out_list)
 
+    # 通过 theFuzz 模糊匹配
     match_list = fuzz.extractBests(query, py_list, score_cutoff=score, limit=count)
-    if len(match_list) == 0:
-        return None
-    out_list = [ key for path, score in match_list for key, val in py_map.items() if path in val ]
-    return remove_same_keep_sort(out_list)
+    if len(match_list):
+        out_list = [ key for path, score in match_list for key, val in py_map.items() if path in val ]
+        return remove_same_keep_sort(out_list)
+
+    return []
 
 def jump_label(target):
     if target[0] != ',':
@@ -268,7 +279,7 @@ def jump_label(target):
         return labels[',']
     elif target != ',':
         match_list = get_match(target, labels.keys(), score=90, count = 1)
-        if match_list != None:
+        if len(match_list):
             return labels[match_list[0]]
 
     # ',' 开头意味着只检索标签
@@ -281,12 +292,12 @@ def jump_local(target):
 
     entries = [ entry for entry in os.listdir(".") if os.path.isdir(entry) ]
     match_list = get_match(target, entries, score=65, count=1)
-    return match_list[0] if match_list != None else None
+    return match_list[0] if len(match_list) else None
 
 def jump_history(target):
     pathes = split_history()
     match_list = get_match(target, pathes.keys(), score=60, count=10)
-    if match_list == None:
+    if len(match_list) == 0:
         return None
 
     best_match_frecent = 0
