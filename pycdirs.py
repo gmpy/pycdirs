@@ -16,8 +16,7 @@ CONF_HISTORY = os.getenv("HOME") + "/.cdirs_history"
 def parse_args():
     argp = argparser(add_help=False)
     argp.descritption = "更符合中文习惯的目录跳转工具"
-    argp.add_argument("-h", "--help", action="help",
-            help="展示此消息后退出")
+    argp.add_argument("--help", action="help", help="展示此消息后退出")
     argp.add_argument("-s", "--set-label", metavar=',标签', type=str,
             dest="set_label", nargs="?", default=None, const=",",
             help="设置标签(标签必须以','开头)，参数缺省则当前路径为快速标签")
@@ -28,8 +27,10 @@ def parse_args():
             help="删除标签(标签必须以','开头)，参数缺省则删除快速标签")
     argp.add_argument("--complete", action="store_true", dest="complete",
             help="打印补全列表，用于支持Tab补全")
-    argp.add_argument("--record-history", action="store_true", dest="history",
+    argp.add_argument("--record-history", action="store_true", dest="rec_history",
             help="记录历史目录")
+    argp.add_argument("-h", "--list-history", action="store_true", dest="list_history",
+            help="列出匹配的历史目录，缺省列出所有历史目录")
     argp.add_argument("path", type=str, nargs="?", default=os.getenv("PWD"),
             help="目标跳转的目录、标签等关键词")
     argp.epilog="一个更适合中文环境的目录跳转工具，支持标签和历史记录，支持模糊匹配，也支持中文"
@@ -174,6 +175,17 @@ def record_history(arg):
                 break
     os.rename(CONF_HISTORY + "_tmp", CONF_HISTORY)
 
+def list_history(arg):
+    target = arg["path"] if arg["path"] != os.getenv("PWD") else None
+    pathes = split_history()
+    match_list = get_match(target, pathes.keys(), score=0, count=sys.maxsize)
+    if match_list == None:
+        return
+
+    match_list.sort(key = lambda match : pathes[match])
+    for match in match_list:
+        print(f"%-10d %s" % (pathes[match], match))
+
 def split_single_path(path):
     out = []
     if path not in ('/', os.getenv("HOME")):
@@ -229,6 +241,11 @@ def remove_same_keep_sort(choices_list):
     return out_list
 
 def get_match(query, choices, score = 65, count = 5):
+    # 如果没有需要匹配的关键词，则默认所有都匹配
+    if query == None:
+        return list(choices)
+
+    # 转拼音
     py_list, py_map = pinyin_choices(choices)
     pattern = re.compile(query)
     match_list = [ s for s in py_list if pattern.search(s.replace(os.getenv("HOME"), "", 1)) ]
@@ -319,8 +336,10 @@ def main():
         delete_label(arg)
     elif arg["complete"] == True:
         complete(arg)
-    elif arg["history"] == True:
+    elif arg["rec_history"] == True:
         record_history(arg)
+    elif arg["list_history"] == True:
+        list_history(arg)
     else:
         jump_directory(arg)
 
