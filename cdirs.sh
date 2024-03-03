@@ -128,14 +128,13 @@ _cdirs() {
         fi
     }
 
-    # make it quickly by using shell rather than python
     _cdirs_py_use_py() {
         local key dir file
         key="$@"
         dir="$(\dirname $key)"
         file="$(\basename $key)"
 
-        [ -d "$key" -o "${key:0:1}" = '.' -o "${key:0:1}" = '/' ] && return 1
+        [ -d "$key" -o "${key:0:1}" = '.' -o "${key:0:1}" = '/' -o "${key:0:1}" = "~" ] && return 1
         [ -d "${dir}" -a "${dir}" != '.' ] && return 1
         \ls $dir 2>/dev/null | \grep -q "$file" 2>/dev/null && return 1
         return 0
@@ -143,6 +142,8 @@ _cdirs() {
 
     _cdirs_py_complete() {
         local key="$(echo $2 | \awk '{print substr($0, index($0, $2))}')"
+        # In some special cases, use shell to complete quickly.
+        # If print nothing, use default directories completion.
         _cdirs_py_use_py "$key" && $_CDIRS_PY_PATH --complete "$key"
     }
 
