@@ -240,7 +240,7 @@ def remove_same_keep_sort(choices_list):
         out_list.append(one)
     return out_list
 
-def get_match(query, choices, score = 65, count = 5):
+def get_match(query, choices, score = 65, count = 5, strict_match = False):
     # 如果没有需要匹配的关键词，则默认所有都匹配
     if query == None:
         return list(choices)
@@ -262,11 +262,12 @@ def get_match(query, choices, score = 65, count = 5):
         out_list = [ key for path in match_list for key, val in py_map.items() if path in val ]
         return remove_same_keep_sort(out_list)
 
-    # 通过 theFuzz 模糊匹配
-    match_list = fuzz.extractBests(query, py_list, score_cutoff=score, limit=count)
-    if len(match_list):
-        out_list = [ key for path, score in match_list for key, val in py_map.items() if path in val ]
-        return remove_same_keep_sort(out_list)
+    if strict_match == False:
+        # 通过 theFuzz 模糊匹配
+        match_list = fuzz.extractBests(query, py_list, score_cutoff=score, limit=count)
+        if len(match_list):
+            out_list = [ key for path, score in match_list for key, val in py_map.items() if path in val ]
+            return remove_same_keep_sort(out_list)
 
     return []
 
@@ -291,7 +292,7 @@ def jump_local(target):
         return None
 
     entries = [ entry for entry in os.listdir(".") if os.path.isdir(entry) ]
-    match_list = get_match(target, entries, score=65, count=1)
+    match_list = get_match(target, entries, score=65, count=1, strict_match=True)
     return match_list[0] if len(match_list) else None
 
 def jump_history(target):
