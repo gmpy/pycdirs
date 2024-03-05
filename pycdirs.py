@@ -6,9 +6,6 @@ import sys
 import time
 import re
 from argparse import ArgumentParser as argparser
-from thefuzz import process as fuzz
-from pypinyin import pinyin as py
-from pypinyin import Style as pystyle
 
 CONF_LABEL = os.getenv("HOME") + "/.cdirs_label"
 CONF_HISTORY = os.getenv("HOME") + "/.cdirs_history"
@@ -96,9 +93,9 @@ def list_label(arg):
             if ',' in labels:
                 print(f",\t%s" % labels[','])
         else:
-            for label, score in fuzz.extract(target_label, labels.keys()):
-                if score > 1:
-                    print(f"%s\t%s" % (label, labels[label]))
+            match_list = get_match(target_label, labels.keys(), score=1, count=sys.maxsize)
+            for label in match_list:
+                print(f"%s\t%s" % (label, labels[label]))
     else:
         if ',' in labels:
             print(f",\t%s" % labels[','])
@@ -214,6 +211,8 @@ def split_single_pinyin(base_list, py_list):
     return [ base + one for base in base_list for one in py_list ]
 
 def to_pinyin(words):
+    from pypinyin import pinyin as py
+    from pypinyin import Style as pystyle
     n_list = py(words, style=pystyle.NORMAL, heteronym=True)
     f_list = py(words, style=pystyle.FIRST_LETTER, heteronym=True)
     i_list = py(words, style=pystyle.INITIALS, heteronym=True)
@@ -264,6 +263,7 @@ def get_match(query, choices, score = 65, count = 5, strict_match = False):
 
     if strict_match == False:
         # 通过 theFuzz 模糊匹配
+        from thefuzz import process as fuzz
         match_list = fuzz.extractBests(query, py_list, score_cutoff=score, limit=count)
         if len(match_list):
             out_list = [ key for path, score in match_list for key, val in py_map.items() if path in val ]
