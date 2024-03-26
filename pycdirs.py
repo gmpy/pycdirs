@@ -291,9 +291,16 @@ def jump_local(target):
     if target[0] == ',':
         return None
 
+    if os.path.isdir(target):
+        return target
+
+    if os.path.isdir(os.path.dirname(target)):
+        return os.path.dirname(target)
+
     entries = [ entry for entry in os.listdir(".") if os.path.isdir(entry) ]
     match_list = get_match(target, entries, score=65, count=1, strict_match=True)
     return match_list[0] if len(match_list) else None
+
 
 def jump_history(target):
     pathes = split_history()
