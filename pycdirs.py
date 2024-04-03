@@ -258,6 +258,9 @@ def jump_label(target):
     elif target != ',':
         match_list = get_match(target, labels.keys(), score=90, count = 1)
         if len(match_list):
+            # 如果当前目录已经是最匹配的目录了，则获取下一级匹配的，总不能跳转到当前目录吧
+            if labels[match_list[0]] == os.path.abspath(os.getcwd()) and len(match_list) > 1:
+                return labels[match_list[1]]
             return labels[match_list[0]]
 
     # ',' 开头意味着只检索标签
@@ -289,7 +292,11 @@ def jump_history(target):
     best_match_length = 0
     best_match_path = ""
     for match in match_list:
+        # 如果当前目录已经是最匹配的目录了，则获取下一级匹配的，总不能跳转到当前目录吧
+        if match == os.path.abspath(os.getcwd()) and len(match_list) > 1:
+            continue
         if pathes[match] >= best_match_frecent:
+            # 相同分值，取最长路径的
             if pathes[match] == best_match_frecent and best_match_length < len(match):
                 continue
             best_match_frecent = pathes[match]
