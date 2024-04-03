@@ -67,25 +67,28 @@ _cdirs() {
 
         # maintain the history file
         local tempfile="$histfile.$RANDOM"
-        local maxlimit=200
-        _cdirs_dirs | \awk -v path="$*" -v now="$(\date +%s)" -v limit=$maxlimit -F"|" '
+        local score="9000"
+        _cdirs_dirs | \awk -v path="$*" -v now="$(\date +%s)" -v score=$score -F"|" '
             BEGIN {
                 rank[path] = 1
                 time[path] = now
-                count = 0
             }
-            count < limit {
-                if( $1 == path ) {
+            $2 >= 1 {
+                # drop rank below 1
+                if ( $1 == path ) {
                     rank[$1] = $2 + 1
                     time[$1] = now
                 } else {
                     rank[$1] = $2
                     time[$1] = $3
                 }
-                count += 1
+                count += $2
             }
             END {
-                for( x in rank ) print x "|" rank[x] "|" time[x]
+                if ( count > score ) {
+                    # aging
+                    for ( x in rank ) print x "|" 0.99*rank[x] "|" time[x]
+                }  else for (x in rank ) print x "|" rank[x] "|" time[x]
             }
         ' 2>/dev/null >| "$tempfile"
         # do our best to avoid clobbering the histfile in a race condition.

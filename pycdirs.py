@@ -24,8 +24,6 @@ def parse_args():
             help="删除标签(标签必须以','开头)，参数缺省则删除快速标签")
     argp.add_argument("--complete", action="store_true", dest="complete",
             help="打印补全列表，用于支持Tab补全")
-    argp.add_argument("--record-history", action="store_true", dest="rec_history",
-            help="记录历史目录")
     argp.add_argument("-h", "--list-history", action="store_true", dest="list_history",
             help="列出匹配的历史目录，缺省列出所有历史目录")
     argp.add_argument("path", type=str, nargs="?", default=os.getenv("PWD"),
@@ -150,27 +148,6 @@ def complete(arg):
         complete_label(target)
     else:
         complete_path(target)
-
-def record_history(arg):
-    target_path = os.path.abspath(arg["path"]).rstrip('/\\')
-    # 记录 $HOME 和 / 意义不大
-    if target_path in [ "/", os.getenv("HOME") ]:
-        return
-
-    hists = load_history()
-    target_freq = (hists[target_path][0] if target_path in hists else 0) + 1
-    target_tm = int(time.time())
-    cnt = 0
-    with open(CONF_HISTORY + "_tmp", "w") as f:
-        f.write(f"%s|%d|%d\n" % (target_path, target_freq, target_tm))
-        for path, (freq, tm) in hists.items():
-            # 每次记录都移除已经不存在的路径
-            if path != target_path and os.path.isdir(path):
-                f.write(f"%s|%d|%d\n" % (path, freq, tm))
-                cnt += 1
-            if cnt > 200:
-                break
-    os.rename(CONF_HISTORY + "_tmp", CONF_HISTORY)
 
 def list_history(arg):
     target = arg["path"] if arg["path"] != os.getenv("PWD") else None
@@ -355,8 +332,6 @@ def main():
         delete_label(arg)
     elif arg["complete"] == True:
         complete(arg)
-    elif arg["rec_history"] == True:
-        record_history(arg)
     elif arg["list_history"] == True:
         list_history(arg)
     else:
