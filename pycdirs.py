@@ -307,7 +307,7 @@ def jump_history(target):
 def jump_directory(arg):
     target = arg["path"]
 
-    if target in ("~", ".", "..", "-") or os.path.exists(target):
+    if target in ("~", ".", "..", "-") or os.path.isdir(target):
         print(target)
         return
 
