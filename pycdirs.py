@@ -61,9 +61,9 @@ def load_history(enable_frecent = False):
         for conf in f:
             path, freq, tm = conf.strip().split('|')
             if enable_frecent:
-                hist[path] = frecent(int(freq), int(tm))
+                hist[path] = frecent(float(freq), int(tm))
             else:
-                hist[path] = (int(freq), int(tm))
+                hist[path] = (float(freq), int(tm))
     return hist
 
 def set_label(arg):
