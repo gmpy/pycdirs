@@ -26,7 +26,7 @@ def parse_args():
             help="打印补全列表，用于支持Tab补全")
     argp.add_argument("-h", "--list-history", action="store_true", dest="list_history",
             help="列出匹配的历史目录，缺省列出所有历史目录")
-    argp.add_argument("path", type=str, nargs="?", default=os.getenv("PWD"),
+    argp.add_argument("path", type=str, nargs="*", default=os.getenv("PWD"),
             help="目标跳转的目录、标签等关键词")
     argp.epilog="一个更适合中文环境的目录跳转工具，支持标签和历史记录，支持模糊匹配，也支持中文"
     return vars(argp.parse_args(sys.argv[1:]))
@@ -331,6 +331,8 @@ def jump_directory(arg):
 
 def main():
     arg = parse_args()
+    arg["path"] = [ sub for p in arg["path"] for sub in p.split() ]
+    arg["path"] = '.*'.join(arg["path"])
     if arg["set_label"] != None:
         set_label(arg)
     elif arg["list_label"] != None:
