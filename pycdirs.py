@@ -184,28 +184,34 @@ def frecent(rank, tm):
     dx = int(time.time()) - tm;
     return int(10000 * rank * (3.75/((0.0001 * dx + 1) + 0.25)))
 
-def split_single_pinyin(base_list, py_list):
-    return [ base + one for base in base_list for one in py_list ]
+def split_single_pinyin(py_list):
+    base_list = [""]
+    for words in py_list:
+        base_list = [ base + one for base in base_list for one in words ]
+    return base_list
 
 def to_pinyin(words):
     from pypinyin import pinyin as py
     from pypinyin import Style as pystyle
+
     n_list = py(words, style=pystyle.NORMAL, heteronym=True)
+    n_list = split_single_pinyin(n_list)
+
     f_list = py(words, style=pystyle.FIRST_LETTER, heteronym=True)
+    f_list = split_single_pinyin(f_list)
+
     i_list = py(words, style=pystyle.INITIALS, heteronym=True)
-    return [ list(set(n_list[idx] + f_list[idx] + i_list[idx])) for idx in range(0, len(n_list)) ]
+    i_list = split_single_pinyin(i_list)
+
+    return list(set(n_list + f_list + i_list))
 
 def pinyin_choices(choices_list):
     out_list = []
     out_map = {}
     for choice in choices_list:
-        base_list = [""]
         py_out = to_pinyin(choice)
-        for py_list in py_out:
-            base_list = split_single_pinyin(base_list, py_list)
-
-        out_map[choice] = base_list
-        out_list.extend([ "".join(one) for one in base_list])
+        out_map[choice] = py_out
+        out_list.extend([ "".join(one) for one in py_out])
     return (out_list, out_map)
 
 def remove_same_keep_sort(choices_list):
