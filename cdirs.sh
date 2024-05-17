@@ -14,52 +14,55 @@ _cdirs() {
         local line
         while read line; do
             # only count directories
-            [ -d "${line#*\|}" ] && echo "${line}"
+            [ -d "${line#*\|}" ] && echo "${line%\|*}"
         done < "$labelfile"
         return 0
     }
 
-    _cdirs_dirs () {
+    _cdirs_dirs() {
         [ -f "$histfile" ] || return
 
         local line
         while read line; do
             # only count directories
-            [ -d "${line%%\|*}" ] && echo "${line}"
+            if [ -d "${line%%\|*}" ]; then
+                [ -n "$only_dir" ] && echo "${line%%\|*}" || echo "${line}"
+            fi
         done < "$histfile"
         return 0
     }
 
-    _cdirs_sh_complete() {
-        key="$(echo $2 | \awk '{print substr($0, index($0, $2))}')"
-        if [ "${key:0:1}" = "," ]; then
-            _cdirs_labels | \awk -v q="$key" -F"|" '
-                BEGIN {
-                    if( q == tolower(q) ) imatch = 1
-                    gsub(/ /, ".*", q)
-                }
-                {
-                    if( imatch ) {
-                        if( tolower($1) ~ q ) print $1
-                    } else if( $1 ~ q ) print $1
-                }
-            ' 2>/dev/null
-        else
-            _cdirs_dirs | \awk -v q="$key" -F"|" '
-                BEGIN {
-                    if( q == tolower(q) ) imatch = 1
-                    gsub(/ /, ".*", q)
-                }
-                {
-                    if( imatch ) {
-                        if( tolower($1) ~ q ) print $1
-                    } else if( $1 ~ q ) print $1
-                }
-            ' 2>/dev/null
-        fi
+    _cdirs_options() {
+        echo "-h -s -l -d --help --set-label --list-label --del-label --list-history"
     }
 
-    _cdirs_sh_add_history() {
+    _cdirs_complete_check() {
+        local key dir file
+
+        key="$@"
+        [ -d "$key" -o "${key:0:1}" = '.' -o "${key:0:1}" = '/' -o "${key:0:1}" = "~" ] && return 1
+        [ "${key:0:1}" = '-' -o -z "${key}" ] && return 0
+
+        dir="$(\dirname $key)"
+        file="$(\basename $key)"
+        [ -d "${dir}" -a "${dir}" != '.' ] && return 1
+        \ls $dir 2>/dev/null | \grep -q "$file" 2>/dev/null && return 1
+        return 0
+    }
+
+    _cdirs_complete() {
+        shift
+
+        # should complete by cdirs?
+        _cdirs_complete_check "$1" || return
+
+        case "$1" in
+            ,*) _cdirs_labels;;
+            -*) _cdirs_options;;
+        esac
+    }
+
+    _cdirs_add_history() {
         shift
 
         # $HOME and / aren't worth matching
@@ -99,88 +102,31 @@ _cdirs() {
         fi
     }
 
-    _cdirs_sh_jump_label() {
-        # TODO
-        builtin cd "$@"
-    }
-
-    _cdirs_sh_jump_history() {
-        # TODO
-        builtin cd "$@"
-    }
-
-    _cdirs_sh_jump() {
-        local cd="$@"
-
-        if [ -d "$cd" -o "${cd:0:1}" = '.' -o "${cd:0:1}" = '/' -o "${cd:0:1}" = '-' ]; then
-            builtin cd "$cd"
-        elif [ "${cd:0:1}" = ',' ]; then
-            _cdirs_sh_jump_label "$cd"
-        else
-            _cdirs_sh_jump_history "$cd"
-        fi
-    }
-
-    _cdirs_sh() {
-        if [ "$1" = "--complete" ]; then
-            _cdirs_sh_complete "$@"
-        elif [ "$1" = "--add-history" ]; then
-            _cdirs_sh_add_history "$@"
-        else
-            _cdirs_sh_jump "$@"
-        fi
-    }
-
-    _cdirs_py_use_py() {
-        local key dir file
-        key="$@"
-        dir="$(\dirname $key)"
-        file="$(\basename $key)"
-
-        [ -d "$key" -o "${key:0:1}" = '.' -o "${key:0:1}" = '/' -o "${key:0:1}" = "~" ] && return 1
-        [ -d "${dir}" -a "${dir}" != '.' ] && return 1
-        \ls $dir 2>/dev/null | \grep -q "$file" 2>/dev/null && return 1
-        return 0
-    }
-
-    _cdirs_py_complete() {
-        local key="$(echo $2 | \awk '{print substr($0, index($0, $2))}')"
-        # In some special cases, use shell to complete quickly.
-        # If print nothing, use default directories completion.
-        _cdirs_py_use_py "$key" && $_CDIRS_PY_PATH --complete "$key"
-    }
-
-    _cdirs_py_jump() {
+    _cdirs_jump() {
         local cd="${@:-${HOME}}"
-        if [ -d "$cd" -o "${cd:0:1}" = '.' -o "${cd:0:1}" = '/' -o "${cd:0:1}" = '-' ]; then
+        if [ -d "$cd" -o "${cd:0:1}" = '.' -o "${cd:0:1}" = '/' -o "${cd}" = '-' -o "${cd}" = '~' ]; then
             builtin cd "$cd"
         else
             cd="$(${_CDIRS_PY_PATH} "$cd")"
-            [ -d "$cd" ] && builtin cd "$cd"
+            [ "$?" -eq 0 ] && builtin cd "$cd" || echo "$cd"
         fi
     }
 
     _cdirs_py() {
         case "$1" in
-            --complete) _cdirs_py_complete "$@";;
-            --add-history)
-                # make it quickly by using shell rather than python
-                _cdirs_sh_add_history "$@"
-                ;;
-            -*|,,)
-                [ "$1" = '-' ] && _cdirs_py_jump "$@" && return
-                ${_CDIRS_PY_PATH} $@
-                ;;
-            *)
-                _cdirs_py_jump "$@"
-                ;;
+            # It's faster to using script to complete and add history
+            --complete) _cdirs_complete "$@";;
+            --add-history) _cdirs_add_history "$@";;
+            -) _cdirs_jump "$@";;
+            -*|,,) ${_CDIRS_PY_PATH} $@;;
+            *) _cdirs_jump "$@";;
         esac
     }
 
     if [ -x "$_CDIRS_PY_PATH" ]; then
         _cdirs_py "$@"
     else
-        _cdirs_sh "$@"
+        echo "not found or not executable: $_CDIRS_PY_PATH" && return 1
     fi
 }
 
@@ -215,8 +161,13 @@ if type compctl >/dev/null 2>&1; then
     _CDIRS_PY_PATH="$(builtin cd $(dirname "$0") && pwd)/pycdirs.py"
 elif type complete >/dev/null 2>&1; then
     # bash
+    _cdirs_bash_tab_completion() {
+        local cur="${COMP_WORDS[COMP_CWORD]}"
+        local out="$(_cdirs --complete "${cur}")"
+        COMPREPLY=($(compgen -W "${out}" -- "${cur}"))
+    }
     _CDIRS_PY_PATH="$(builtin cd $(dirname "$BASH_SOURCE") && pwd)/pycdirs.py"
-    complete -o dirnames -C '_cdirs --complete "$COMP_LINE"' ${_CDIRS_CMD:-cdirs}
+    complete -o dirnames -F _cdirs_bash_tab_completion ${_CDIRS_CMD:-cdirs}
     [ "$_CDIRS_NO_PROMPT_COMMAND" ] || {
         #populate directory list. avoid clobbering other PROMPT_COMMANDs.
         grep "_cdirs --add-history" <<< "$PROMPT_COMMAND" >/dev/null || {
