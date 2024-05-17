@@ -67,8 +67,13 @@ def load_history(enable_frecent = False):
     return hist
 
 def set_label(arg):
-    target_path = os.path.abspath(arg["path"]).rstrip('/\\')
-    target_label = arg["set_label"]
+    if arg["path"][0] == ",,":
+        target_path = os.getenv("PWD")
+        target_label = ","
+    else:
+        target_path = os.path.abspath(arg["path"]).rstrip('/\\')
+        target_label = arg["set_label"]
+
     if target_label[0] != ",":
         raise ValueError("标签必须以','开头")
 
@@ -340,7 +345,7 @@ def jump_directory(arg):
 def main():
     arg = parse_args()
 
-    if arg["set_label"] != None:
+    if arg["set_label"] != None or arg["path"][0] == ",,":
         set_label(arg)
     elif arg["list_label"] != None:
         list_label(arg)

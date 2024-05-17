@@ -167,7 +167,7 @@ _cdirs() {
                 # make it quickly by using shell rather than python
                 _cdirs_sh_add_history "$@"
                 ;;
-            -*)
+            -*|,,)
                 [ "$1" = '-' ] && _cdirs_py_jump "$@" && return
                 ${_CDIRS_PY_PATH} $@
                 ;;
