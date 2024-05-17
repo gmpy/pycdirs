@@ -311,6 +311,8 @@ def jump_history(target):
     return best_match_path
 
 def jump_directory(arg):
+    arg["path"] = [ sub for p in arg["path"] for sub in p.split() ]
+    arg["path"] = '.*'.join(arg["path"])
     target = arg["path"]
 
     if target in ("~", ".", "..", "-") or os.path.isdir(target):
@@ -337,8 +339,7 @@ def jump_directory(arg):
 
 def main():
     arg = parse_args()
-    arg["path"] = [ sub for p in arg["path"] for sub in p.split() ]
-    arg["path"] = '.*'.join(arg["path"])
+
     if arg["set_label"] != None:
         set_label(arg)
     elif arg["list_label"] != None:
