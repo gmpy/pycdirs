@@ -134,6 +134,7 @@ alias ${_CDIRS_CMD:-cdirs}='_cdirs 2>&1'
 
 if type compctl >/dev/null 2>&1; then
     # zsh
+    _CDIRS_PY_PATH="$(builtin cd $(dirname "$0") && pwd)/pycdirs.py"
     [ "$_CDIRS_NO_PROMPT_COMMAND" ] || {
         # populate directory list, avoid clobbering any other precmds.
         if [ "$_CDIRS_NO_RESOLVE_SYMLINKS" ]; then
@@ -151,22 +152,22 @@ if type compctl >/dev/null 2>&1; then
             precmd_functions[$(($#precmd_functions+1))]=_cdirs_precmd
         }
     }
-    _cdirs_zsh_tab_completion() {
-        # tab completion
-        local compl
-        read -l compl
-        reply=(${(f)"$(_cdirs --complete "$compl")"})
-    }
-    compctl -U -K _cdirs_zsh_tab_completion ${_CDIRS_CMD:-cdirs}
-    _CDIRS_PY_PATH="$(builtin cd $(dirname "$0") && pwd)/pycdirs.py"
+    # todo
+    #_cdirs_zsh_tab_completion() {
+    #    # tab completion
+    #    local compl
+    #    read -l compl
+    #    reply=(${(f)"$(_cdirs --complete "$compl")"})
+    #}
+    #compctl -U -K _cdirs_zsh_tab_completion _cdirs
 elif type complete >/dev/null 2>&1; then
     # bash
+    _CDIRS_PY_PATH="$(builtin cd $(dirname "$BASH_SOURCE") && pwd)/pycdirs.py"
     _cdirs_bash_tab_completion() {
         local cur="${COMP_WORDS[COMP_CWORD]}"
         local out="$(_cdirs --complete "${cur}")"
         COMPREPLY=($(compgen -W "${out}" -- "${cur}"))
     }
-    _CDIRS_PY_PATH="$(builtin cd $(dirname "$BASH_SOURCE") && pwd)/pycdirs.py"
     complete -o dirnames -F _cdirs_bash_tab_completion ${_CDIRS_CMD:-cdirs}
     [ "$_CDIRS_NO_PROMPT_COMMAND" ] || {
         #populate directory list. avoid clobbering other PROMPT_COMMANDs.
