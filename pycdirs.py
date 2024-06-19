@@ -155,7 +155,11 @@ def complete(arg):
         complete_path(target)
 
 def list_history(arg):
-    target = arg["path"] if arg["path"] != os.getenv("PWD") else None
+    target = None
+    if arg["path"] != os.getenv("PWD"):
+        arg["path"] = [ sub for p in arg["path"] for sub in p.split() ]
+        arg["path"] = '.*'.join(arg["path"])
+        target = arg["path"]
     pathes = split_history()
     match_list = get_match(target, pathes.keys(), score=0, count=sys.maxsize)
     if len(match_list) == 0:
