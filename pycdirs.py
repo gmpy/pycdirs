@@ -35,7 +35,7 @@ def load_labels():
     labels = {}
 
     if os.path.exists(CONF_LABEL) and not os.path.isfile(CONF_LABEL):
-        raise FileExistsError(f"%s 已经存在且不是文件，请删除后使用标签功能" % CONF_LABEL)
+        raise FileExistsError("%s 已经存在且不是文件，请删除后使用标签功能" % CONF_LABEL)
     if not os.path.exists(CONF_LABEL):
         with open(CONF_LABEL, "w") as f:
             pass
@@ -51,7 +51,7 @@ def load_history(enable_frecent = False):
     hist = {}
 
     if os.path.exists(CONF_HISTORY) and not os.path.isfile(CONF_HISTORY):
-        raise FileExistsError(f"%s 已经存在且不是文件，请删除后使用标签功能" % CONF_HISTORY)
+        raise FileExistsError("%s 已经存在且不是文件，请删除后使用标签功能" % CONF_HISTORY)
     if not os.path.exists(CONF_HISTORY):
         with open(CONF_HISTORY, "w") as f:
             pass
@@ -79,12 +79,12 @@ def set_label(arg):
 
     labels = load_labels()
     with open(CONF_LABEL + "_tmp", "w") as f:
-        print(f"[set] %s : %s" % (target_label, target_path))
-        f.write(f"%s|%s\n" % (target_label, target_path))
+        print("[set] %s : %s" % (target_label, target_path))
+        f.write("%s|%s\n" % (target_label, target_path))
         for label, path in labels.items():
             if label == target_label:
                 continue
-            f.write(f"%s|%s\n" % (label, path))
+            f.write("%s|%s\n" % (label, path))
         os.rename(CONF_LABEL + "_tmp", CONF_LABEL)
 
 def list_label(arg):
@@ -94,17 +94,17 @@ def list_label(arg):
     if target_label != "":
         if target_label == ',':
             if ',' in labels:
-                print(f",\t%s" % labels[','])
+                print(",\t%s" % labels[','])
         else:
             match_list = get_match(target_label, labels.keys(), score=1, count=sys.maxsize)
             for label in match_list:
-                print(f"%s\t%s" % (label, labels[label]))
+                print("%s\t%s" % (label, labels[label]))
     else:
         if ',' in labels:
-            print(f",\t%s" % labels[','])
+            print(",\t%s" % labels[','])
         for label, path in labels.items():
             if label != ',':
-                print(f"%s\t%s" % (label, path))
+                print("%s\t%s" % (label, path))
 
 def delete_label(arg):
     target_label = arg["del_label"]
@@ -118,9 +118,9 @@ def delete_label(arg):
     with open(CONF_LABEL + "_tmp", "w") as f:
         for label, path in labels.items():
             if label == target_label:
-                print(f"[del] %s : %s" % (target_label, arg["path"]))
+                print("[del] %s : %s" % (target_label, arg["path"]))
             else:
-                f.write(f"%s|%s\n" % (label, path))
+                f.write("%s|%s\n" % (label, path))
         os.rename(CONF_LABEL + "_tmp", CONF_LABEL)
 
 def complete_label(target):
@@ -167,7 +167,7 @@ def list_history(arg):
 
     match_list.sort(key = lambda match : pathes[match])
     for match in match_list:
-        print(f"%-10d %s" % (pathes[match], match))
+        print("%-10d %s" % (pathes[match], match))
 
 def split_single_path(path):
     out = []
@@ -279,7 +279,7 @@ def jump_label(target):
             return labels[match_list[0]]
 
     # ',' 开头意味着只检索标签
-    print(f"找不到标签: %s" % target, file=sys.stderr)
+    print("找不到标签: %s" % target, file=sys.stderr)
     exit(1)
 
 def jump_local(target):
@@ -343,7 +343,7 @@ def jump_directory(arg):
         print(best_match)
         return
 
-    print(f"找不到匹配的目录: %s" % target, file=sys.stderr)
+    print("找不到匹配的目录: %s" % target, file=sys.stderr)
     exit(1)
 
 def main():
