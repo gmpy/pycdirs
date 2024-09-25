@@ -106,6 +106,8 @@ _cdirs() {
         local cd="${@:-${HOME}}"
         if [ -d "$cd" -o "${cd:0:1}" = '.' -o "${cd:0:1}" = '/' -o "${cd}" = '-' -o "${cd}" = '~' ]; then
             builtin cd "$cd"
+        elif [ -f "$cd" ]; then
+            echo "it's not directory: $cd"
         else
             cd="$(${_CDIRS_PY_PATH} "$cd")"
             [ "$?" -eq 0 ] && builtin cd "$cd" || echo "$cd"
