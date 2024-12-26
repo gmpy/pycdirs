@@ -104,7 +104,10 @@ _cdirs() {
 
     _cdirs_jump() {
         local cd="${@:-${HOME}}"
-        if [ -d "$cd" -o "${cd:0:1}" = '.' -o "${cd:0:1}" = '/' -o "${cd}" = '-' -o "${cd}" = '~' ]; then
+        if [ -d "$cd" -o "${cd}" = '-' -o "${cd}" = '~' ]; then
+            builtin cd "$cd"
+        elif [ "${cd:0:1}" = '.' -o "${cd:0:1}" = '/' -o "${cd:0:1}" = '~' ]; then
+            [ -d "$(\dirname ${cd})" ] && cd="$(\dirname ${cd})"
             builtin cd "$cd"
         elif [ -f "$cd" ]; then
             echo "it's not directory: $cd"
