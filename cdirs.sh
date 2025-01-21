@@ -110,7 +110,7 @@ _cdirs() {
             [ -d "$(\dirname ${cd})" ] && cd="$(\dirname ${cd})"
             builtin cd "$cd"
         elif [ -f "$cd" ]; then
-            echo "it's not directory: $cd"
+            builtin cd "$(\dirname ${cd})"
         else
             cd="$(${_CDIRS_PY_PATH} "$cd")"
             [ "$?" -eq 0 ] && builtin cd "$cd" || echo "$cd"
